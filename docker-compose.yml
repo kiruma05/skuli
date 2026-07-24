@@ -65,6 +65,10 @@ services:
       # Override the .env's localhost DB URL so the container reaches the compose Postgres.
       # (Runs `prisma migrate deploy` on startup, creating the schema on a fresh DB.)
       DATABASE_URL: postgresql://${DB_USER:-kiruma}:${DB_PASSWORD:-mypassword}@postgres:5432/${DB_NAME:-mydb}
+      # OIDC-in-Docker: use one Keycloak hostname reachable from BOTH the container (host-gateway)
+      # and the browser (needs `127.0.0.1 host.docker.internal` in the host's /etc/hosts).
+      AUTH_KEYCLOAK_ISSUER: ${KEYCLOAK_ISSUER_URI:-http://host.docker.internal:8080/realms/skuli}
+      AUTH_TRUST_HOST: 'true'
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     depends_on:
