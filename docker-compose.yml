@@ -56,9 +56,8 @@ services:
         NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: ${NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME:-demo}
     container_name: skuli_frontend
     ports:
-      # Host 3001 to avoid clashing with a host `npm run dev` still on 3000.
-      # Stop the host dev server and change this back to 3000 for the fully-containerized setup.
-      - '3001:3000'
+      # Fully containerized: the app IS localhost:3000 (host dev server retired).
+      - '3000:3000'
     env_file:
       - ./full-stack-school-main/.env
     environment:
