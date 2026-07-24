@@ -1,0 +1,27 @@
+# ---- Secrets (never commit) ----
+**/.env
+**/.env.*
+!**/.env.example
+
+# ---- Node / Next.js ----
+**/node_modules/
+**/.next/
+**/out/
+*.tsbuildinfo
+next-env.d.ts
+
+# ---- Java / Maven (upcoming school-platform) ----
+**/target/
+**/*.class
+
+# ---- Python (upcoming ai-service) ----
+**/__pycache__/
+**/.venv/
+*.pyc
+
+# ---- OS / editor / local tooling ----
+.DS_Store
+.claude/
+
+# ---- Stray duplicate project folder (not canonical) ----
+full-stack-school-main 2/
