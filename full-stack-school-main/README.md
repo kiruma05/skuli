@@ -1,4 +1,4 @@
-# Lama Dev School Management Dashboard
+# Kiruma High School Management Dashboard
 
 ## Getting Started
 

@@ -1,0 +1,28 @@
+# Backend overlay (Spring Boot). Combine with the base:
+#   docker compose -f docker-compose.yml -f docker-compose.backend.yml up -d --build
+# The base supplies Postgres + the shared network; this file adds only the backend service.
+
+name: skuli
+
+services:
+  backend:
+    build:
+      context: ./school-platform
+    container_name: skuli_backend
+    ports:
+      # Host 8081 to avoid clashing with the external Keycloak container on 8080.
+      - '8081:8080'
+    environment:
+      DB_HOST: postgres
+      DB_PORT: '5432'
+      DB_NAME: ${DB_NAME:-mydb}
+      DB_USER: ${DB_USER:-kiruma}
+      DB_PASSWORD: ${DB_PASSWORD:-mypassword}
+      # External Keycloak container, realm "skuli". JWT decoding is lazy, so the backend
+      # boots even if Keycloak is not reachable yet.
+      KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI:-http://host.docker.internal:8080/realms/skuli}
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    depends_on:
+      postgres:
+        condition: service_healthy

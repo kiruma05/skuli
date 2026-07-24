@@ -25,3 +25,6 @@ next-env.d.ts
 
 # ---- Stray duplicate project folder (not canonical) ----
 full-stack-school-main 2/
+
+# vim swap files
+*.swp
