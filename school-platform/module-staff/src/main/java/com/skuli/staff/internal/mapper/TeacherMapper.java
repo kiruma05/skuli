@@ -13,6 +13,7 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface TeacherMapper {
 
+    @Mapping(target = "password", ignore = true) // write-only; never leaves the entity
     TeacherDto toDto(Teacher entity);
 
     @Mapping(target = "tenantId", ignore = true)

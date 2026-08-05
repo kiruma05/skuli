@@ -1,6 +1,8 @@
 package com.skuli.staff.api.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.skuli.common.domain.UserSex;
+import com.skuli.common.validation.OnCreate;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -9,9 +11,10 @@ import java.time.Instant;
 import java.util.Set;
 
 /**
- * Transport shape for a teacher, mirroring the legacy Zod {@code teacherSchema}. Used for both
- * reads and writes in Phase 2; {@code createdAt} is read-only (server-populated) and ignored on
- * the write path. Validation constraints mirror the source form rules.
+ * Transport shape for a teacher, mirroring the legacy Zod {@code teacherSchema}. {@code id} equals
+ * the Keycloak username. {@code createdAt} is read-only (server-populated). {@code password} is
+ * write-only (accepted on input, never serialised back) and required only on create — on update a
+ * null password leaves the Keycloak credential unchanged.
  */
 public record TeacherDto(
         @NotBlank @Size(max = 255) String id,
@@ -26,5 +29,8 @@ public record TeacherDto(
         @NotNull UserSex sex,
         @NotNull Instant birthday,
         Set<Integer> subjectIds,
+        @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+        @NotBlank(groups = OnCreate.class)
+        @Size(min = 8, max = 100, groups = OnCreate.class) String password,
         Instant createdAt) {
 }

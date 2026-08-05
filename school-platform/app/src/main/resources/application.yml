@@ -24,6 +24,10 @@ spring:
 # (see SecurityConfig) and the app boots before Keycloak/its realm is ready.
 keycloak:
   issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/skuli}
+  # Service-account client used by the Admin API for user provisioning (module-auth).
+  # Dev defaults keep the lazy admin client constructable; real values come from the env.
+  client-id: ${AUTH_KEYCLOAK_ID:school-app}
+  client-secret: ${AUTH_KEYCLOAK_SECRET:changeme}
 
 management:
   endpoints:
