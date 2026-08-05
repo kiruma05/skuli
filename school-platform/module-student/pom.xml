@@ -20,12 +20,27 @@
             <groupId>com.skuli</groupId>
             <artifactId>common-library</artifactId>
         </dependency>
+        <!-- Student creation provisions a Keycloak user via module-auth's exposed API. -->
+        <dependency>
+            <groupId>com.skuli</groupId>
+            <artifactId>module-auth</artifactId>
+        </dependency>
+        <!-- The enrolment capacity rule reads class capacity via module-academics' ClassCatalog. -->
+        <dependency>
+            <groupId>com.skuli</groupId>
+            <artifactId>module-academics</artifactId>
+        </dependency>
         <!-- MapStruct annotation processor: generates the *MapperImpl classes at compile time.
              'provided' keeps it off the runtime classpath; javac discovers it automatically. -->
         <dependency>
             <groupId>org.mapstruct</groupId>
             <artifactId>mapstruct-processor</artifactId>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
