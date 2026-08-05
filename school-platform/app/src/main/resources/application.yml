@@ -17,8 +17,8 @@ spring:
         format_sql: true
 
   flyway:
-    # No migrations yet in Phase 1; enabled in Phase 2 when V1__init.sql lands.
-    enabled: false
+    # Schema owned by Flyway; V1__init.sql (Phase 2) is the translated Prisma schema + tenant_id.
+    enabled: true
 
 # Keycloak (separate container). Read via a custom property so the JWT decoder can be lazy
 # (see SecurityConfig) and the app boots before Keycloak/its realm is ready.

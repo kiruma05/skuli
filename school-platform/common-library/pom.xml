@@ -20,6 +20,18 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+        <!-- JPA + Hibernate: entities and repositories live in the domain modules, but the
+             tenant-aware/auditable @MappedSuperclass base types live here, so the JPA API is
+             part of the shared kernel and every module inherits it transitively. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <!-- MapStruct API (entity <-> DTO). The annotation processor is declared per module. -->
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>

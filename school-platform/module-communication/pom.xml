@@ -20,6 +20,13 @@
             <groupId>com.skuli</groupId>
             <artifactId>common-library</artifactId>
         </dependency>
+        <!-- MapStruct annotation processor: generates the *MapperImpl classes at compile time.
+             'provided' keeps it off the runtime classpath; javac discovers it automatically. -->
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct-processor</artifactId>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 
 </project>
