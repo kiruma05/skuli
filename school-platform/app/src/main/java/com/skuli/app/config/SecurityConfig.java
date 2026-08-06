@@ -58,7 +58,9 @@ public class SecurityConfig {
                                 "/api/v1/exams/**",
                                 "/api/v1/assignments/**",
                                 "/api/v1/results/**",
-                                "/api/v1/attendance/**").hasAnyRole("admin", "teacher")
+                                "/api/v1/attendance/**",
+                                "/api/v1/events/**",
+                                "/api/v1/announcements/**").hasAnyRole("admin", "teacher")
                         .requestMatchers("/api/v1/**").hasAnyRole("admin", "teacher", "student", "parent")
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth -> oauth
