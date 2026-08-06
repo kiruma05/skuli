@@ -11,6 +11,7 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface ParentMapper {
 
+    @Mapping(target = "password", ignore = true) // write-only; never leaves the entity
     ParentDto toDto(Parent entity);
 
     @Mapping(target = "tenantId", ignore = true)
