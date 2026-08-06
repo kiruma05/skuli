@@ -2,6 +2,8 @@ package com.skuli.app.config;
 
 import com.skuli.common.security.JwtAuthConverter;
 import com.skuli.common.security.TenantContextFilter;
+import com.skuli.student.api.StudentDirectory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -40,7 +42,9 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, JwtDecoder jwtDecoder) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, JwtDecoder jwtDecoder,
+                                           ObjectProvider<StudentDirectory> studentDirectory)
+            throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> {
@@ -76,7 +80,9 @@ public class SecurityConfig {
                         .jwt(jwt -> jwt
                                 .decoder(jwtDecoder)
                                 .jwtAuthenticationConverter(new JwtAuthConverter())))
-                .addFilterAfter(new TenantContextFilter(), BearerTokenAuthenticationFilter.class);
+                .addFilterAfter(new TenantContextFilter(), BearerTokenAuthenticationFilter.class)
+                .addFilterAfter(new UserContextFilter(studentDirectory.getIfAvailable()),
+                        TenantContextFilter.class);
         return http.build();
     }
 

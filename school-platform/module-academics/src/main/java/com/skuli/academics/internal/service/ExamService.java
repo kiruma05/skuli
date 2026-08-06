@@ -11,7 +11,10 @@ import com.skuli.academics.internal.repository.LessonRepository;
 import com.skuli.academics.internal.repository.SchoolClassRepository;
 import com.skuli.academics.internal.repository.SubjectRepository;
 import com.skuli.common.error.ResourceNotFoundException;
+import com.skuli.common.security.UserContext;
 import com.skuli.common.util.PageResponse;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -46,11 +49,39 @@ public class ExamService {
 
     @Transactional(readOnly = true)
     public PageResponse<ExamDto> list(String search, Pageable pageable) {
-        Page<Exam> page = (search == null || search.isBlank())
-                ? repository.findAll(pageable)
-                : repository.findAll(titleContains(search), pageable);
+        Specification<Exam> spec = visibleScope();
+        if (search != null && !search.isBlank()) {
+            spec = spec.and(titleContains(search));
+        }
+        Page<Exam> page = repository.findAll(spec, pageable);
         List<ExamDto> content = page.getContent().stream().map(this::toView).toList();
         return PageResponse.of(content, page.getNumber(), page.getSize(), page.getTotalElements());
+    }
+
+    /**
+     * Row-level visibility (§7): admin sees all; teacher sees exams of their own lessons; student
+     * and parent see exams of their class(es). Implemented as a subquery over {@link Lesson}, which
+     * carries the teacher and class the exam is scoped by.
+     */
+    private static Specification<Exam> visibleScope() {
+        return (root, query, cb) -> {
+            UserContext.Principal principal = UserContext.get();
+            if (principal == null || principal.isAdmin()) {
+                return cb.conjunction();
+            }
+            Subquery<Integer> lessonIds = query.subquery(Integer.class);
+            Root<Lesson> lesson = lessonIds.from(Lesson.class);
+            lessonIds.select(lesson.get("id"));  // Lesson id is the subquery result
+            if (principal.isTeacher()) {
+                lessonIds.where(cb.equal(lesson.get("teacherId"), principal.userId()));
+            } else {
+                if (principal.classIds().isEmpty()) {
+                    return cb.disjunction();
+                }
+                lessonIds.where(lesson.get("classId").in(principal.classIds()));
+            }
+            return root.get("lessonId").in(lessonIds);
+        };
     }
 
     @Transactional(readOnly = true)

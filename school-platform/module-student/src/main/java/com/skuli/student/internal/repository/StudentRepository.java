@@ -23,4 +23,7 @@ public interface StudentRepository
     boolean existsByUsername(String username);
 
     long countByClassId(Integer classId);
+
+    /** Children of a parent (id == username); backs the parent's row-level visibility scope. */
+    java.util.List<Student> findByParentId(String parentId);
 }
