@@ -6,7 +6,6 @@ import com.skuli.academics.internal.mapper.SchoolClassMapper;
 import com.skuli.academics.internal.repository.SchoolClassRepository;
 import com.skuli.common.error.BusinessRuleException;
 import com.skuli.common.error.ResourceNotFoundException;
-import com.skuli.common.security.TenantContext;
 import com.skuli.common.util.PageResponse;
 import java.util.List;
 import org.springframework.data.domain.Page;
@@ -16,9 +15,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Application service for class groups, following the Subject reference pattern: tenant-scoped
- * CRUD with per-tenant name uniqueness. The capacity value is stored here; the capacity *rule*
- * (reject enrolment into a full class) lives with student creation in module-student.
+ * Application service for class groups. Tenant isolation is enforced transparently by
+ * {@code @TenantId}; class names are unique per tenant. The capacity value is stored here; the
+ * capacity <em>rule</em> lives with student creation in module-student.
  */
 @Service
 @Transactional
@@ -34,13 +33,9 @@ public class SchoolClassService {
 
     @Transactional(readOnly = true)
     public PageResponse<SchoolClassDto> list(String search, Pageable pageable) {
-        String tenant = requireTenant();
-        Specification<SchoolClass> spec = (root, query, cb) -> cb.equal(root.get("tenantId"), tenant);
-        if (search != null && !search.isBlank()) {
-            String like = "%" + search.trim().toLowerCase() + "%";
-            spec = spec.and((root, query, cb) -> cb.like(cb.lower(root.get("name")), like));
-        }
-        Page<SchoolClass> page = repository.findAll(spec, pageable);
+        Page<SchoolClass> page = (search == null || search.isBlank())
+                ? repository.findAll(pageable)
+                : repository.findAll(nameContains(search), pageable);
         List<SchoolClassDto> content = page.getContent().stream().map(mapper::toDto).toList();
         return PageResponse.of(content, page.getNumber(), page.getSize(), page.getTotalElements());
     }
@@ -51,20 +46,17 @@ public class SchoolClassService {
     }
 
     public SchoolClassDto create(SchoolClassDto dto) {
-        String tenant = requireTenant();
-        if (repository.existsByTenantIdAndName(tenant, dto.name())) {
+        if (repository.existsByName(dto.name())) {
             throw new BusinessRuleException("A class named '" + dto.name() + "' already exists");
         }
         SchoolClass entity = mapper.toEntity(dto);
-        entity.setId(null); // never trust a client-supplied id on create; the DB assigns it
+        entity.setId(null);
         return mapper.toDto(repository.save(entity));
     }
 
     public SchoolClassDto update(Integer id, SchoolClassDto dto) {
-        String tenant = requireTenant();
         SchoolClass entity = load(id);
-        if (!entity.getName().equals(dto.name())
-                && repository.existsByTenantIdAndName(tenant, dto.name())) {
+        if (!entity.getName().equals(dto.name()) && repository.existsByName(dto.name())) {
             throw new BusinessRuleException("A class named '" + dto.name() + "' already exists");
         }
         entity.setName(dto.name());
@@ -79,15 +71,12 @@ public class SchoolClassService {
     }
 
     private SchoolClass load(Integer id) {
-        return repository.findByIdAndTenantId(id, requireTenant())
+        return repository.findById(id)
                 .orElseThrow(() -> ResourceNotFoundException.of("Class", id));
     }
 
-    private String requireTenant() {
-        String tenant = TenantContext.get();
-        if (tenant == null) {
-            throw new IllegalStateException("No tenant in the request context");
-        }
-        return tenant;
+    private static Specification<SchoolClass> nameContains(String search) {
+        String like = "%" + search.trim().toLowerCase() + "%";
+        return (root, query, cb) -> cb.like(cb.lower(root.get("name")), like);
     }
 }

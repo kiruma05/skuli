@@ -50,7 +50,7 @@ class GradeServiceTest {
     @Test
     void create_persistsGrade_andIgnoresClientSuppliedId() {
         AtomicReference<Integer> idAtSave = new AtomicReference<>();
-        when(repository.existsByTenantIdAndLevel(TENANT, 3)).thenReturn(false);
+        when(repository.existsByLevel(3)).thenReturn(false);
         when(repository.save(any(Grade.class))).thenAnswer(inv -> {
             Grade g = inv.getArgument(0);
             idAtSave.set(g.getId());
@@ -67,7 +67,7 @@ class GradeServiceTest {
 
     @Test
     void create_rejectsDuplicateLevelWithinTenant() {
-        when(repository.existsByTenantIdAndLevel(TENANT, 3)).thenReturn(true);
+        when(repository.existsByLevel(3)).thenReturn(true);
 
         assertThatThrownBy(() -> service.create(new GradeDto(null, 3)))
                 .isInstanceOf(BusinessRuleException.class);
@@ -77,7 +77,7 @@ class GradeServiceTest {
 
     @Test
     void get_missingGradeInTenant_throwsNotFound() {
-        when(repository.findByIdAndTenantId(7, TENANT)).thenReturn(Optional.empty());
+        when(repository.findById(7)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.get(7))
                 .isInstanceOf(ResourceNotFoundException.class);

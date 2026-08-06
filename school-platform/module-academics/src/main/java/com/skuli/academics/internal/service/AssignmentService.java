@@ -5,7 +5,6 @@ import com.skuli.academics.internal.domain.Assignment;
 import com.skuli.academics.internal.mapper.AssignmentMapper;
 import com.skuli.academics.internal.repository.AssignmentRepository;
 import com.skuli.common.error.ResourceNotFoundException;
-import com.skuli.common.security.TenantContext;
 import com.skuli.common.util.PageResponse;
 import java.util.List;
 import org.springframework.data.domain.Page;
@@ -15,8 +14,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Application service for assignments, following the Subject reference pattern: tenant-scoped CRUD
- * over a lesson (referenced by id).
+ * Application service for assignments. Tenant isolation is enforced transparently by
+ * {@code @TenantId}; the lesson is referenced by id.
  */
 @Service
 @Transactional
@@ -32,13 +31,9 @@ public class AssignmentService {
 
     @Transactional(readOnly = true)
     public PageResponse<AssignmentDto> list(String search, Pageable pageable) {
-        String tenant = requireTenant();
-        Specification<Assignment> spec = (root, query, cb) -> cb.equal(root.get("tenantId"), tenant);
-        if (search != null && !search.isBlank()) {
-            String like = "%" + search.trim().toLowerCase() + "%";
-            spec = spec.and((root, query, cb) -> cb.like(cb.lower(root.get("title")), like));
-        }
-        Page<Assignment> page = repository.findAll(spec, pageable);
+        Page<Assignment> page = (search == null || search.isBlank())
+                ? repository.findAll(pageable)
+                : repository.findAll(titleContains(search), pageable);
         List<AssignmentDto> content = page.getContent().stream().map(mapper::toDto).toList();
         return PageResponse.of(content, page.getNumber(), page.getSize(), page.getTotalElements());
     }
@@ -49,7 +44,6 @@ public class AssignmentService {
     }
 
     public AssignmentDto create(AssignmentDto dto) {
-        requireTenant();
         Assignment entity = mapper.toEntity(dto);
         entity.setId(null);
         return mapper.toDto(repository.save(entity));
@@ -69,15 +63,12 @@ public class AssignmentService {
     }
 
     private Assignment load(Integer id) {
-        return repository.findByIdAndTenantId(id, requireTenant())
+        return repository.findById(id)
                 .orElseThrow(() -> ResourceNotFoundException.of("Assignment", id));
     }
 
-    private String requireTenant() {
-        String tenant = TenantContext.get();
-        if (tenant == null) {
-            throw new IllegalStateException("No tenant in the request context");
-        }
-        return tenant;
+    private static Specification<Assignment> titleContains(String search) {
+        String like = "%" + search.trim().toLowerCase() + "%";
+        return (root, query, cb) -> cb.like(cb.lower(root.get("title")), like);
     }
 }

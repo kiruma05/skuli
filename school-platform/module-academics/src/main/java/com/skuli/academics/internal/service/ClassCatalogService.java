@@ -3,14 +3,14 @@ package com.skuli.academics.internal.service;
 import com.skuli.academics.api.ClassCatalog;
 import com.skuli.academics.internal.domain.SchoolClass;
 import com.skuli.academics.internal.repository.SchoolClassRepository;
-import com.skuli.common.security.TenantContext;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Implements the {@link ClassCatalog} cross-module contract over the class repository, tenant-
- * scoped via {@link TenantContext}.
+ * Implements the {@link ClassCatalog} cross-module contract over the class repository. The lookup
+ * is tenant-scoped automatically by Hibernate's {@code @TenantId} discriminator, so a caller in
+ * another module can only ever see its own tenant's classes.
  */
 @Service
 public class ClassCatalogService implements ClassCatalog {
@@ -24,10 +24,6 @@ public class ClassCatalogService implements ClassCatalog {
     @Override
     @Transactional(readOnly = true)
     public Optional<Integer> capacityOf(Integer classId) {
-        String tenant = TenantContext.get();
-        if (tenant == null) {
-            throw new IllegalStateException("No tenant in the request context");
-        }
-        return repository.findByIdAndTenantId(classId, tenant).map(SchoolClass::getCapacity);
+        return repository.findById(classId).map(SchoolClass::getCapacity);
     }
 }

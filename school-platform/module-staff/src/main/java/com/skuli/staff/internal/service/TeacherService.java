@@ -5,7 +5,6 @@ import com.skuli.auth.api.KeycloakService.NewUser;
 import com.skuli.auth.api.KeycloakService.UpdateUser;
 import com.skuli.common.error.BusinessRuleException;
 import com.skuli.common.error.ResourceNotFoundException;
-import com.skuli.common.security.TenantContext;
 import com.skuli.common.util.PageResponse;
 import com.skuli.staff.api.dto.TeacherDto;
 import com.skuli.staff.internal.domain.Teacher;
@@ -21,9 +20,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Application service for teachers. Unlike the pure-CRUD academics resources, creating a teacher
- * provisions a Keycloak user first and only then writes the DB row, because Keycloak is the
- * identity source and is not transactional with the database (plan §5):
+ * Application service for teachers. Tenant isolation is enforced transparently by {@code @TenantId}
+ * (queries and inserts are auto-scoped). Creating a teacher provisions a Keycloak user first and
+ * only then writes the DB row, because Keycloak is the identity source and is not transactional
+ * with the database (plan §5):
  *
  * <ul>
  *   <li><b>Create</b>: Keycloak user -> realm role -> DB row. If the DB write fails, the Keycloak
@@ -31,10 +31,6 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li><b>Delete</b>: DB row first, then the Keycloak user.</li>
  *   <li><b>Update</b>: DB row, then propagate profile/password changes to Keycloak.</li>
  * </ul>
- *
- * <p>Writes go through {@code repository.save}/{@code delete}, which are individually transactional
- * and surface constraint violations synchronously — so the compensation can run immediately when
- * the DB step throws.
  */
 @Service
 public class TeacherService {
@@ -55,16 +51,9 @@ public class TeacherService {
 
     @Transactional(readOnly = true)
     public PageResponse<TeacherDto> list(String search, Pageable pageable) {
-        String tenant = requireTenant();
-        Specification<Teacher> spec = (root, query, cb) -> cb.equal(root.get("tenantId"), tenant);
-        if (search != null && !search.isBlank()) {
-            String like = "%" + search.trim().toLowerCase() + "%";
-            spec = spec.and((root, query, cb) -> cb.or(
-                    cb.like(cb.lower(root.get("name")), like),
-                    cb.like(cb.lower(root.get("surname")), like),
-                    cb.like(cb.lower(root.get("username")), like)));
-        }
-        Page<Teacher> page = repository.findAll(spec, pageable);
+        Page<Teacher> page = (search == null || search.isBlank())
+                ? repository.findAll(pageable)
+                : repository.findAll(matches(search), pageable);
         List<TeacherDto> content = page.getContent().stream().map(mapper::toDto).toList();
         return PageResponse.of(content, page.getNumber(), page.getSize(), page.getTotalElements());
     }
@@ -79,7 +68,6 @@ public class TeacherService {
      * DB write fails so the two systems cannot drift.
      */
     public TeacherDto create(TeacherDto dto) {
-        requireTenant();
         String username = dto.username();
         if (repository.existsByUsername(username)) {
             throw new BusinessRuleException("Username already taken: " + username);
@@ -127,9 +115,7 @@ public class TeacherService {
     }
 
     private Teacher load(String id) {
-        String tenant = requireTenant();
         return repository.findById(id)
-                .filter(t -> tenant.equals(t.getTenantId()))
                 .orElseThrow(() -> ResourceNotFoundException.of("Teacher", id));
     }
 
@@ -146,11 +132,11 @@ public class TeacherService {
         }
     }
 
-    private String requireTenant() {
-        String tenant = TenantContext.get();
-        if (tenant == null) {
-            throw new IllegalStateException("No tenant in the request context");
-        }
-        return tenant;
+    private static Specification<Teacher> matches(String search) {
+        String like = "%" + search.trim().toLowerCase() + "%";
+        return (root, query, cb) -> cb.or(
+                cb.like(cb.lower(root.get("name")), like),
+                cb.like(cb.lower(root.get("surname")), like),
+                cb.like(cb.lower(root.get("username")), like));
     }
 }

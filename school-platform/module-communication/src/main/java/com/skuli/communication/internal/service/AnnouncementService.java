@@ -1,7 +1,6 @@
 package com.skuli.communication.internal.service;
 
 import com.skuli.common.error.ResourceNotFoundException;
-import com.skuli.common.security.TenantContext;
 import com.skuli.common.util.PageResponse;
 import com.skuli.communication.api.dto.AnnouncementDto;
 import com.skuli.communication.internal.domain.Announcement;
@@ -15,8 +14,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Application service for school announcements, following the Subject reference pattern: tenant-
- * scoped CRUD. The class is referenced by id and is optional (null = school-wide).
+ * Application service for school announcements. Tenant isolation is enforced transparently by
+ * {@code @TenantId}; the class is referenced by id and is optional (null = school-wide).
  */
 @Service
 @Transactional
@@ -32,14 +31,9 @@ public class AnnouncementService {
 
     @Transactional(readOnly = true)
     public PageResponse<AnnouncementDto> list(String search, Pageable pageable) {
-        String tenant = requireTenant();
-        Specification<Announcement> spec =
-                (root, query, cb) -> cb.equal(root.get("tenantId"), tenant);
-        if (search != null && !search.isBlank()) {
-            String like = "%" + search.trim().toLowerCase() + "%";
-            spec = spec.and((root, query, cb) -> cb.like(cb.lower(root.get("title")), like));
-        }
-        Page<Announcement> page = repository.findAll(spec, pageable);
+        Page<Announcement> page = (search == null || search.isBlank())
+                ? repository.findAll(pageable)
+                : repository.findAll(titleContains(search), pageable);
         List<AnnouncementDto> content = page.getContent().stream().map(mapper::toDto).toList();
         return PageResponse.of(content, page.getNumber(), page.getSize(), page.getTotalElements());
     }
@@ -50,7 +44,6 @@ public class AnnouncementService {
     }
 
     public AnnouncementDto create(AnnouncementDto dto) {
-        requireTenant();
         Announcement entity = mapper.toEntity(dto);
         entity.setId(null);
         return mapper.toDto(repository.save(entity));
@@ -70,15 +63,12 @@ public class AnnouncementService {
     }
 
     private Announcement load(Integer id) {
-        return repository.findByIdAndTenantId(id, requireTenant())
+        return repository.findById(id)
                 .orElseThrow(() -> ResourceNotFoundException.of("Announcement", id));
     }
 
-    private String requireTenant() {
-        String tenant = TenantContext.get();
-        if (tenant == null) {
-            throw new IllegalStateException("No tenant in the request context");
-        }
-        return tenant;
+    private static Specification<Announcement> titleContains(String search) {
+        String like = "%" + search.trim().toLowerCase() + "%";
+        return (root, query, cb) -> cb.like(cb.lower(root.get("title")), like);
     }
 }

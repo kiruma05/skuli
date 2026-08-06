@@ -6,7 +6,6 @@ import com.skuli.academics.internal.mapper.SubjectMapper;
 import com.skuli.academics.internal.repository.SubjectRepository;
 import com.skuli.common.error.BusinessRuleException;
 import com.skuli.common.error.ResourceNotFoundException;
-import com.skuli.common.security.TenantContext;
 import com.skuli.common.util.PageResponse;
 import java.util.List;
 import org.springframework.data.domain.Page;
@@ -16,10 +15,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Application service for subjects — the Phase 3 reference vertical slice that every other
- * resource copies. All operations are scoped to the current request's tenant (school) read from
- * {@link TenantContext}: a caller can never read, mutate, or collide with another school's data.
- * Subject names are unique per tenant, enforced here and mirrored by a DB constraint.
+ * Application service for subjects — the Phase 3 reference vertical slice. Tenant isolation is
+ * enforced transparently by Hibernate's {@code @TenantId} discriminator (see
+ * {@link com.skuli.common.domain.TenantAware}): every query and insert below is automatically
+ * scoped to the current request's tenant, so this code only expresses domain logic. Subject names
+ * are unique per tenant, enforced here and mirrored by a DB constraint.
  */
 @Service
 @Transactional
@@ -35,13 +35,9 @@ public class SubjectService {
 
     @Transactional(readOnly = true)
     public PageResponse<SubjectDto> list(String search, Pageable pageable) {
-        String tenant = requireTenant();
-        Specification<Subject> spec = (root, query, cb) -> cb.equal(root.get("tenantId"), tenant);
-        if (search != null && !search.isBlank()) {
-            String like = "%" + search.trim().toLowerCase() + "%";
-            spec = spec.and((root, query, cb) -> cb.like(cb.lower(root.get("name")), like));
-        }
-        Page<Subject> page = repository.findAll(spec, pageable);
+        Page<Subject> page = (search == null || search.isBlank())
+                ? repository.findAll(pageable)
+                : repository.findAll(nameContains(search), pageable);
         List<SubjectDto> content = page.getContent().stream().map(mapper::toDto).toList();
         return PageResponse.of(content, page.getNumber(), page.getSize(), page.getTotalElements());
     }
@@ -52,8 +48,7 @@ public class SubjectService {
     }
 
     public SubjectDto create(SubjectDto dto) {
-        String tenant = requireTenant();
-        if (repository.existsByTenantIdAndName(tenant, dto.name())) {
+        if (repository.existsByName(dto.name())) {
             throw new BusinessRuleException("A subject named '" + dto.name() + "' already exists");
         }
         Subject entity = mapper.toEntity(dto);
@@ -62,10 +57,8 @@ public class SubjectService {
     }
 
     public SubjectDto update(Integer id, SubjectDto dto) {
-        String tenant = requireTenant();
         Subject entity = load(id);
-        if (!entity.getName().equals(dto.name())
-                && repository.existsByTenantIdAndName(tenant, dto.name())) {
+        if (!entity.getName().equals(dto.name()) && repository.existsByName(dto.name())) {
             throw new BusinessRuleException("A subject named '" + dto.name() + "' already exists");
         }
         entity.setName(dto.name());
@@ -77,15 +70,12 @@ public class SubjectService {
     }
 
     private Subject load(Integer id) {
-        return repository.findByIdAndTenantId(id, requireTenant())
+        return repository.findById(id)
                 .orElseThrow(() -> ResourceNotFoundException.of("Subject", id));
     }
 
-    private String requireTenant() {
-        String tenant = TenantContext.get();
-        if (tenant == null) {
-            throw new IllegalStateException("No tenant in the request context");
-        }
-        return tenant;
+    private static Specification<Subject> nameContains(String search) {
+        String like = "%" + search.trim().toLowerCase() + "%";
+        return (root, query, cb) -> cb.like(cb.lower(root.get("name")), like);
     }
 }

@@ -5,18 +5,16 @@ import com.skuli.academics.internal.domain.Attendance;
 import com.skuli.academics.internal.mapper.AttendanceMapper;
 import com.skuli.academics.internal.repository.AttendanceRepository;
 import com.skuli.common.error.ResourceNotFoundException;
-import com.skuli.common.security.TenantContext;
 import com.skuli.common.util.PageResponse;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Application service for attendance records, following the Subject reference pattern: tenant-
- * scoped CRUD over a student and a lesson (referenced by id).
+ * Application service for attendance records. Tenant isolation is enforced transparently by
+ * {@code @TenantId}; student and lesson are referenced by id.
  */
 @Service
 @Transactional
@@ -32,9 +30,7 @@ public class AttendanceService {
 
     @Transactional(readOnly = true)
     public PageResponse<AttendanceDto> list(Pageable pageable) {
-        String tenant = requireTenant();
-        Specification<Attendance> spec = (root, query, cb) -> cb.equal(root.get("tenantId"), tenant);
-        Page<Attendance> page = repository.findAll(spec, pageable);
+        Page<Attendance> page = repository.findAll(pageable);
         List<AttendanceDto> content = page.getContent().stream().map(mapper::toDto).toList();
         return PageResponse.of(content, page.getNumber(), page.getSize(), page.getTotalElements());
     }
@@ -45,7 +41,6 @@ public class AttendanceService {
     }
 
     public AttendanceDto create(AttendanceDto dto) {
-        requireTenant();
         Attendance entity = mapper.toEntity(dto);
         entity.setId(null);
         return mapper.toDto(repository.save(entity));
@@ -65,15 +60,7 @@ public class AttendanceService {
     }
 
     private Attendance load(Integer id) {
-        return repository.findByIdAndTenantId(id, requireTenant())
+        return repository.findById(id)
                 .orElseThrow(() -> ResourceNotFoundException.of("Attendance", id));
-    }
-
-    private String requireTenant() {
-        String tenant = TenantContext.get();
-        if (tenant == null) {
-            throw new IllegalStateException("No tenant in the request context");
-        }
-        return tenant;
     }
 }

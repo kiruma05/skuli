@@ -50,7 +50,7 @@ class SchoolClassServiceTest {
     @Test
     void create_persistsClass_andIgnoresClientSuppliedId() {
         AtomicReference<Integer> idAtSave = new AtomicReference<>();
-        when(repository.existsByTenantIdAndName(TENANT, "1A")).thenReturn(false);
+        when(repository.existsByName("1A")).thenReturn(false);
         when(repository.save(any(SchoolClass.class))).thenAnswer(inv -> {
             SchoolClass c = inv.getArgument(0);
             idAtSave.set(c.getId());
@@ -69,7 +69,7 @@ class SchoolClassServiceTest {
 
     @Test
     void create_rejectsDuplicateNameWithinTenant() {
-        when(repository.existsByTenantIdAndName(TENANT, "1A")).thenReturn(true);
+        when(repository.existsByName("1A")).thenReturn(true);
 
         assertThatThrownBy(() -> service.create(new SchoolClassDto(null, "1A", 30, null, 1)))
                 .isInstanceOf(BusinessRuleException.class);
@@ -84,7 +84,7 @@ class SchoolClassServiceTest {
         existing.setName("1A");
         existing.setCapacity(30);
         existing.setGradeId(1);
-        when(repository.findByIdAndTenantId(5, TENANT)).thenReturn(Optional.of(existing));
+        when(repository.findById(5)).thenReturn(Optional.of(existing));
         when(repository.save(any(SchoolClass.class))).thenAnswer(inv -> inv.getArgument(0));
 
         SchoolClassDto result = service.update(5, new SchoolClassDto(5, "1A", 40, "teacher-2", 2));
@@ -96,7 +96,7 @@ class SchoolClassServiceTest {
 
     @Test
     void get_missingClassInTenant_throwsNotFound() {
-        when(repository.findByIdAndTenantId(7, TENANT)).thenReturn(Optional.empty());
+        when(repository.findById(7)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.get(7))
                 .isInstanceOf(ResourceNotFoundException.class);

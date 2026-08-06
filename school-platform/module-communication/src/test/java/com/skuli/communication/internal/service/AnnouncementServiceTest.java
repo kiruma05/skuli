@@ -67,7 +67,7 @@ class AnnouncementServiceTest {
 
     @Test
     void get_missing_throwsNotFound() {
-        when(repository.findByIdAndTenantId(7, TENANT)).thenReturn(Optional.empty());
+        when(repository.findById(7)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.get(7)).isInstanceOf(ResourceNotFoundException.class);
     }

@@ -5,7 +5,6 @@ import com.skuli.academics.internal.domain.Lesson;
 import com.skuli.academics.internal.mapper.LessonMapper;
 import com.skuli.academics.internal.repository.LessonRepository;
 import com.skuli.common.error.ResourceNotFoundException;
-import com.skuli.common.security.TenantContext;
 import com.skuli.common.util.PageResponse;
 import java.util.List;
 import org.springframework.data.domain.Page;
@@ -15,8 +14,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Application service for lessons, following the Subject reference pattern: tenant-scoped CRUD.
- * Subject, class and teacher are referenced by id and validated at the DB (foreign keys).
+ * Application service for lessons. Tenant isolation is enforced transparently by {@code @TenantId};
+ * subject, class and teacher are referenced by id and validated at the DB (foreign keys).
  */
 @Service
 @Transactional
@@ -32,13 +31,9 @@ public class LessonService {
 
     @Transactional(readOnly = true)
     public PageResponse<LessonDto> list(String search, Pageable pageable) {
-        String tenant = requireTenant();
-        Specification<Lesson> spec = (root, query, cb) -> cb.equal(root.get("tenantId"), tenant);
-        if (search != null && !search.isBlank()) {
-            String like = "%" + search.trim().toLowerCase() + "%";
-            spec = spec.and((root, query, cb) -> cb.like(cb.lower(root.get("name")), like));
-        }
-        Page<Lesson> page = repository.findAll(spec, pageable);
+        Page<Lesson> page = (search == null || search.isBlank())
+                ? repository.findAll(pageable)
+                : repository.findAll(nameContains(search), pageable);
         List<LessonDto> content = page.getContent().stream().map(mapper::toDto).toList();
         return PageResponse.of(content, page.getNumber(), page.getSize(), page.getTotalElements());
     }
@@ -49,7 +44,6 @@ public class LessonService {
     }
 
     public LessonDto create(LessonDto dto) {
-        requireTenant();
         Lesson entity = mapper.toEntity(dto);
         entity.setId(null);
         return mapper.toDto(repository.save(entity));
@@ -72,15 +66,12 @@ public class LessonService {
     }
 
     private Lesson load(Integer id) {
-        return repository.findByIdAndTenantId(id, requireTenant())
+        return repository.findById(id)
                 .orElseThrow(() -> ResourceNotFoundException.of("Lesson", id));
     }
 
-    private String requireTenant() {
-        String tenant = TenantContext.get();
-        if (tenant == null) {
-            throw new IllegalStateException("No tenant in the request context");
-        }
-        return tenant;
+    private static Specification<Lesson> nameContains(String search) {
+        String like = "%" + search.trim().toLowerCase() + "%";
+        return (root, query, cb) -> cb.like(cb.lower(root.get("name")), like);
     }
 }

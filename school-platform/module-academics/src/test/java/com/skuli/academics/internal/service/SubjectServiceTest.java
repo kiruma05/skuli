@@ -55,7 +55,7 @@ class SubjectServiceTest {
         // so we cannot inspect it via a captor after the fact.
         AtomicReference<Integer> idAtSave = new AtomicReference<>();
         AtomicReference<String> nameAtSave = new AtomicReference<>();
-        when(repository.existsByTenantIdAndName(TENANT, "Mathematics")).thenReturn(false);
+        when(repository.existsByName("Mathematics")).thenReturn(false);
         when(repository.save(any(Subject.class))).thenAnswer(inv -> {
             Subject s = inv.getArgument(0);
             idAtSave.set(s.getId());
@@ -74,7 +74,7 @@ class SubjectServiceTest {
 
     @Test
     void create_rejectsDuplicateNameWithinTenant() {
-        when(repository.existsByTenantIdAndName(TENANT, "Mathematics")).thenReturn(true);
+        when(repository.existsByName("Mathematics")).thenReturn(true);
 
         assertThatThrownBy(() -> service.create(new SubjectDto(null, "Mathematics")))
                 .isInstanceOf(BusinessRuleException.class);
@@ -84,7 +84,7 @@ class SubjectServiceTest {
 
     @Test
     void get_missingSubjectInTenant_throwsNotFound() {
-        when(repository.findByIdAndTenantId(7, TENANT)).thenReturn(Optional.empty());
+        when(repository.findById(7)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.get(7))
                 .isInstanceOf(ResourceNotFoundException.class);
@@ -95,7 +95,7 @@ class SubjectServiceTest {
         Subject subject = new Subject();
         subject.setId(5);
         subject.setName("History");
-        when(repository.findByIdAndTenantId(5, TENANT)).thenReturn(Optional.of(subject));
+        when(repository.findById(5)).thenReturn(Optional.of(subject));
 
         service.delete(5);
 

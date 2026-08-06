@@ -6,20 +6,17 @@ import com.skuli.academics.internal.mapper.ResultMapper;
 import com.skuli.academics.internal.repository.ResultRepository;
 import com.skuli.common.error.BusinessRuleException;
 import com.skuli.common.error.ResourceNotFoundException;
-import com.skuli.common.security.TenantContext;
 import com.skuli.common.util.PageResponse;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Application service for results, following the Subject reference pattern with one business rule:
- * a result must reference <em>exactly one</em> of an exam or an assignment (never both, never
- * neither), mirroring the Prisma model where {@code examId} and {@code assignmentId} are both
- * nullable but mutually exclusive in practice.
+ * Application service for results. Tenant isolation is enforced transparently by {@code @TenantId}.
+ * One business rule: a result must reference <em>exactly one</em> of an exam or an assignment
+ * (never both, never neither), mirroring the mutually-exclusive nullable foreign keys.
  */
 @Service
 @Transactional
@@ -35,9 +32,7 @@ public class ResultService {
 
     @Transactional(readOnly = true)
     public PageResponse<ResultDto> list(Pageable pageable) {
-        String tenant = requireTenant();
-        Specification<Result> spec = (root, query, cb) -> cb.equal(root.get("tenantId"), tenant);
-        Page<Result> page = repository.findAll(spec, pageable);
+        Page<Result> page = repository.findAll(pageable);
         List<ResultDto> content = page.getContent().stream().map(mapper::toDto).toList();
         return PageResponse.of(content, page.getNumber(), page.getSize(), page.getTotalElements());
     }
@@ -48,7 +43,6 @@ public class ResultService {
     }
 
     public ResultDto create(ResultDto dto) {
-        requireTenant();
         requireExactlyOneSource(dto);
         Result entity = mapper.toEntity(dto);
         entity.setId(null);
@@ -80,15 +74,7 @@ public class ResultService {
     }
 
     private Result load(Integer id) {
-        return repository.findByIdAndTenantId(id, requireTenant())
+        return repository.findById(id)
                 .orElseThrow(() -> ResourceNotFoundException.of("Result", id));
-    }
-
-    private String requireTenant() {
-        String tenant = TenantContext.get();
-        if (tenant == null) {
-            throw new IllegalStateException("No tenant in the request context");
-        }
-        return tenant;
     }
 }

@@ -6,7 +6,6 @@ import com.skuli.auth.api.KeycloakService.NewUser;
 import com.skuli.auth.api.KeycloakService.UpdateUser;
 import com.skuli.common.error.BusinessRuleException;
 import com.skuli.common.error.ResourceNotFoundException;
-import com.skuli.common.security.TenantContext;
 import com.skuli.common.util.PageResponse;
 import com.skuli.student.api.dto.StudentDto;
 import com.skuli.student.internal.domain.Student;
@@ -22,11 +21,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Application service for students. Like teachers, creation provisions a Keycloak user before the
- * DB row (with a compensating delete on failure); additionally it enforces the class-capacity rule
- * ported from the legacy server action: a student cannot be enrolled into a class that is already
- * full. The class capacity comes from module-academics via {@link ClassCatalog} — a cross-module
- * call through the exposed interface, not a reach into its internals.
+ * Application service for students. Tenant isolation is enforced transparently by {@code @TenantId}.
+ * Like teachers, creation provisions a Keycloak user before the DB row (with a compensating delete
+ * on failure); additionally it enforces the class-capacity rule: a student cannot be enrolled into
+ * a class that is already full. The class capacity comes from module-academics via
+ * {@link ClassCatalog} — a cross-module call through the exposed interface (itself tenant-scoped).
  */
 @Service
 public class StudentService {
@@ -49,16 +48,9 @@ public class StudentService {
 
     @Transactional(readOnly = true)
     public PageResponse<StudentDto> list(String search, Pageable pageable) {
-        String tenant = requireTenant();
-        Specification<Student> spec = (root, query, cb) -> cb.equal(root.get("tenantId"), tenant);
-        if (search != null && !search.isBlank()) {
-            String like = "%" + search.trim().toLowerCase() + "%";
-            spec = spec.and((root, query, cb) -> cb.or(
-                    cb.like(cb.lower(root.get("name")), like),
-                    cb.like(cb.lower(root.get("surname")), like),
-                    cb.like(cb.lower(root.get("username")), like)));
-        }
-        Page<Student> page = repository.findAll(spec, pageable);
+        Page<Student> page = (search == null || search.isBlank())
+                ? repository.findAll(pageable)
+                : repository.findAll(matches(search), pageable);
         List<StudentDto> content = page.getContent().stream().map(mapper::toDto).toList();
         return PageResponse.of(content, page.getNumber(), page.getSize(), page.getTotalElements());
     }
@@ -73,7 +65,6 @@ public class StudentService {
      * removed if the DB write fails.
      */
     public StudentDto create(StudentDto dto) {
-        requireTenant();
         String username = dto.username();
         if (repository.existsByUsername(username)) {
             throw new BusinessRuleException("Username already taken: " + username);
@@ -137,9 +128,7 @@ public class StudentService {
     }
 
     private Student load(String id) {
-        String tenant = requireTenant();
         return repository.findById(id)
-                .filter(s -> tenant.equals(s.getTenantId()))
                 .orElseThrow(() -> ResourceNotFoundException.of("Student", id));
     }
 
@@ -156,11 +145,11 @@ public class StudentService {
         }
     }
 
-    private String requireTenant() {
-        String tenant = TenantContext.get();
-        if (tenant == null) {
-            throw new IllegalStateException("No tenant in the request context");
-        }
-        return tenant;
+    private static Specification<Student> matches(String search) {
+        String like = "%" + search.trim().toLowerCase() + "%";
+        return (root, query, cb) -> cb.or(
+                cb.like(cb.lower(root.get("name")), like),
+                cb.like(cb.lower(root.get("surname")), like),
+                cb.like(cb.lower(root.get("username")), like));
     }
 }

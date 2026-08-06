@@ -5,7 +5,6 @@ import com.skuli.auth.api.KeycloakService.NewUser;
 import com.skuli.auth.api.KeycloakService.UpdateUser;
 import com.skuli.common.error.BusinessRuleException;
 import com.skuli.common.error.ResourceNotFoundException;
-import com.skuli.common.security.TenantContext;
 import com.skuli.common.util.PageResponse;
 import com.skuli.student.api.dto.ParentDto;
 import com.skuli.student.internal.domain.Parent;
@@ -21,9 +20,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Application service for parents/guardians. Follows the same Keycloak-then-DB provisioning
- * contract as teachers and students (role {@code parent}, {@code id == username}, compensating
- * Keycloak delete on DB failure, DB-then-Keycloak on delete), with no additional business rules.
+ * Application service for parents/guardians. Tenant isolation is enforced transparently by
+ * {@code @TenantId}. Follows the same Keycloak-then-DB provisioning contract as teachers and
+ * students (role {@code parent}, {@code id == username}, compensating delete on DB failure,
+ * DB-then-Keycloak on delete), with no additional business rules.
  */
 @Service
 public class ParentService {
@@ -43,16 +43,9 @@ public class ParentService {
 
     @Transactional(readOnly = true)
     public PageResponse<ParentDto> list(String search, Pageable pageable) {
-        String tenant = requireTenant();
-        Specification<Parent> spec = (root, query, cb) -> cb.equal(root.get("tenantId"), tenant);
-        if (search != null && !search.isBlank()) {
-            String like = "%" + search.trim().toLowerCase() + "%";
-            spec = spec.and((root, query, cb) -> cb.or(
-                    cb.like(cb.lower(root.get("name")), like),
-                    cb.like(cb.lower(root.get("surname")), like),
-                    cb.like(cb.lower(root.get("username")), like)));
-        }
-        Page<Parent> page = repository.findAll(spec, pageable);
+        Page<Parent> page = (search == null || search.isBlank())
+                ? repository.findAll(pageable)
+                : repository.findAll(matches(search), pageable);
         List<ParentDto> content = page.getContent().stream().map(mapper::toDto).toList();
         return PageResponse.of(content, page.getNumber(), page.getSize(), page.getTotalElements());
     }
@@ -63,7 +56,6 @@ public class ParentService {
     }
 
     public ParentDto create(ParentDto dto) {
-        requireTenant();
         String username = dto.username();
         if (repository.existsByUsername(username)) {
             throw new BusinessRuleException("Username already taken: " + username);
@@ -104,9 +96,7 @@ public class ParentService {
     }
 
     private Parent load(String id) {
-        String tenant = requireTenant();
         return repository.findById(id)
-                .filter(p -> tenant.equals(p.getTenantId()))
                 .orElseThrow(() -> ResourceNotFoundException.of("Parent", id));
     }
 
@@ -123,11 +113,11 @@ public class ParentService {
         }
     }
 
-    private String requireTenant() {
-        String tenant = TenantContext.get();
-        if (tenant == null) {
-            throw new IllegalStateException("No tenant in the request context");
-        }
-        return tenant;
+    private static Specification<Parent> matches(String search) {
+        String like = "%" + search.trim().toLowerCase() + "%";
+        return (root, query, cb) -> cb.or(
+                cb.like(cb.lower(root.get("name")), like),
+                cb.like(cb.lower(root.get("surname")), like),
+                cb.like(cb.lower(root.get("username")), like));
     }
 }
