@@ -1,0 +1,67 @@
+{
+  "realm": "skuli",
+  "enabled": true,
+  "sslRequired": "none",
+  "roles": {
+    "realm": [
+      { "name": "admin" },
+      { "name": "teacher" },
+      { "name": "student" },
+      { "name": "parent" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "school-app",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "school-app-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "redirectUris": ["*"],
+      "webOrigins": ["*"],
+      "protocolMappers": [
+        {
+          "name": "tenant_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "tenant_id",
+            "claim.value": "default",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "admin1",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Admin",
+      "lastName": "User",
+      "credentials": [
+        { "type": "password", "value": "admin123", "temporary": false }
+      ],
+      "realmRoles": ["admin"]
+    },
+    {
+      "username": "teacher1",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Tina",
+      "lastName": "Teacher",
+      "credentials": [
+        { "type": "password", "value": "teacher123", "temporary": false }
+      ],
+      "realmRoles": ["teacher"]
+    }
+  ]
+}

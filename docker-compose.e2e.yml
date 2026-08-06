@@ -1,0 +1,35 @@
+# E2E overlay: adds a Keycloak configured from keycloak/realm-skuli.json and runs the backend with
+# the dev seed, so the whole auth path (Keycloak token -> backend -> tenant-scoped data) can be
+# exercised end to end. Combine with the base + backend overlays:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.backend.yml -f docker-compose.e2e.yml up -d --build
+#
+# KC_HOSTNAME pins the issuer to http://host.docker.internal:8080 regardless of how Keycloak is
+# reached, so the `iss` in issued tokens always matches the backend's configured issuer-uri
+# (avoids the container-vs-browser hostname mismatch).
+
+name: skuli
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: skuli_keycloak
+    command: ['start-dev', '--import-realm']
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: http://host.docker.internal:8080
+      KC_HOSTNAME_STRICT: 'false'
+      KC_HTTP_ENABLED: 'true'
+      KC_HEALTH_ENABLED: 'true'
+    ports:
+      - '8080:8080'
+    volumes:
+      - ./keycloak/realm-skuli.json:/opt/keycloak/data/import/realm-skuli.json:ro
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+
+  backend:
+    # Seed the default tenant's dev data so there is something to read back.
+    environment:
+      SPRING_PROFILES_ACTIVE: dev

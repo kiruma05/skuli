@@ -48,6 +48,13 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
+                        // OpenAPI docs + Swagger UI are browsable without a token (read-only API
+                        // contract); the endpoints they describe still require auth.
+                        .requestMatchers(
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/v3/api-docs",
+                                "/v3/api-docs/**").permitAll()
                         .requestMatchers("/api/v1/subjects/**", "/api/v1/grades/**").hasRole("admin")
                         .requestMatchers(
                                 "/api/v1/teachers/**",
