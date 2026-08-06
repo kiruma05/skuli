@@ -14,3 +14,11 @@ export type SubjectDto = {
   id: number;
   name: string;
 };
+
+export type SchoolClassDto = {
+  id: number;
+  name: string;
+  capacity: number;
+  supervisorId: string | null;
+  gradeId: number;
+};

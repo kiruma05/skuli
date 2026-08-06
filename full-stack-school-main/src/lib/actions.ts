@@ -19,6 +19,11 @@ import {
   updateSubjectApi,
   deleteSubjectApi,
 } from "./api/subjects";
+import {
+  createClassApi,
+  updateClassApi,
+  deleteClassApi,
+} from "./api/classes";
 
 // Login accounts are provisioned in Keycloak via the Admin API. Teacher/Student
 // records are keyed by `username` (which is also the Keycloak username), so the
@@ -71,17 +76,19 @@ export const deleteSubject = async (
   }
 };
 
+// Classes are served by the Spring backend (Phase 4).
 export const createClass = async (
   currentState: CurrentState,
   data: ClassSchema
 ) => {
   try {
-    await prisma.class.create({
-      data,
+    const res = await createClassApi({
+      name: data.name,
+      capacity: data.capacity,
+      gradeId: data.gradeId,
+      supervisorId: data.supervisorId,
     });
-
-    // revalidatePath("/list/class");
-    return { success: true, error: false };
+    return { success: res.ok, error: !res.ok };
   } catch (err) {
     console.log(err);
     return { success: false, error: true };
@@ -93,15 +100,16 @@ export const updateClass = async (
   data: ClassSchema
 ) => {
   try {
-    await prisma.class.update({
-      where: {
-        id: data.id,
-      },
-      data,
+    if (data.id === undefined) {
+      return { success: false, error: true };
+    }
+    const res = await updateClassApi(data.id, {
+      name: data.name,
+      capacity: data.capacity,
+      gradeId: data.gradeId,
+      supervisorId: data.supervisorId,
     });
-
-    // revalidatePath("/list/class");
-    return { success: true, error: false };
+    return { success: res.ok, error: !res.ok };
   } catch (err) {
     console.log(err);
     return { success: false, error: true };
@@ -114,14 +122,8 @@ export const deleteClass = async (
 ) => {
   const id = data.get("id") as string;
   try {
-    await prisma.class.delete({
-      where: {
-        id: parseInt(id),
-      },
-    });
-
-    // revalidatePath("/list/class");
-    return { success: true, error: false };
+    const res = await deleteClassApi(parseInt(id));
+    return { success: res.ok, error: !res.ok };
   } catch (err) {
     console.log(err);
     return { success: false, error: true };
