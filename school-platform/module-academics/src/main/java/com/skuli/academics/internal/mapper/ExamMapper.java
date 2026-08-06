@@ -5,11 +5,10 @@ import com.skuli.academics.internal.domain.Exam;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-/** Maps {@link Exam} to/from {@link ExamDto}. */
+/** Maps write {@link ExamDto}s to {@link Exam}. Reads are assembled as an enriched view in the
+ * service, so no {@code toDto} is generated here. */
 @Mapper(componentModel = "spring")
 public interface ExamMapper {
-
-    ExamDto toDto(Exam entity);
 
     @Mapping(target = "tenantId", ignore = true)
     Exam toEntity(ExamDto dto);

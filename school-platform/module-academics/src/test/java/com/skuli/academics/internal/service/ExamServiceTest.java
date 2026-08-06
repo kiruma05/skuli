@@ -9,6 +9,9 @@ import com.skuli.academics.api.dto.ExamDto;
 import com.skuli.academics.internal.domain.Exam;
 import com.skuli.academics.internal.mapper.ExamMapperImpl;
 import com.skuli.academics.internal.repository.ExamRepository;
+import com.skuli.academics.internal.repository.LessonRepository;
+import com.skuli.academics.internal.repository.SchoolClassRepository;
+import com.skuli.academics.internal.repository.SubjectRepository;
 import com.skuli.common.error.ResourceNotFoundException;
 import com.skuli.common.security.TenantContext;
 import java.time.Instant;
@@ -29,11 +32,21 @@ class ExamServiceTest {
     @Mock
     private ExamRepository repository;
 
+    @Mock
+    private LessonRepository lessonRepository;
+
+    @Mock
+    private SubjectRepository subjectRepository;
+
+    @Mock
+    private SchoolClassRepository classRepository;
+
     private ExamService service;
 
     @BeforeEach
     void setUp() {
-        service = new ExamService(repository, new ExamMapperImpl());
+        service = new ExamService(repository, new ExamMapperImpl(),
+                lessonRepository, subjectRepository, classRepository);
         TenantContext.set(TENANT);
     }
 
@@ -44,7 +57,7 @@ class ExamServiceTest {
 
     private static ExamDto dto() {
         return new ExamDto(999, "Midterm", Instant.parse("2026-01-01T09:00:00Z"),
-                Instant.parse("2026-01-01T10:00:00Z"), 1);
+                Instant.parse("2026-01-01T10:00:00Z"), 1, null, null, null, null);
     }
 
     @Test

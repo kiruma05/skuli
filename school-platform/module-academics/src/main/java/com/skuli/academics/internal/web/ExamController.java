@@ -8,6 +8,7 @@ import java.net.URI;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -45,17 +46,20 @@ public class ExamController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('admin','teacher')")
     public ResponseEntity<ExamDto> create(@Valid @RequestBody ExamDto dto) {
         ExamDto created = service.create(dto);
         return ResponseEntity.created(URI.create("/api/v1/exams/" + created.id())).body(created);
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('admin','teacher')")
     public ExamDto update(@PathVariable Integer id, @Valid @RequestBody ExamDto dto) {
         return service.update(id, dto);
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('admin','teacher')")
     public ResponseEntity<Void> delete(@PathVariable Integer id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
