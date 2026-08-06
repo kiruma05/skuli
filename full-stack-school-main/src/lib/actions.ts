@@ -14,6 +14,11 @@ import {
   updateKeycloakUser,
   deleteKeycloakUser,
 } from "./keycloak";
+import {
+  createSubjectApi,
+  updateSubjectApi,
+  deleteSubjectApi,
+} from "./api/subjects";
 
 // Login accounts are provisioned in Keycloak via the Admin API. Teacher/Student
 // records are keyed by `username` (which is also the Keycloak username), so the
@@ -21,22 +26,15 @@ import {
 
 type CurrentState = { success: boolean; error: boolean };
 
+// Subjects are cut over to the Spring backend (Phase 4). Subject<->teacher assignment is now owned
+// by the staff module, so the teacher ids collected by the form are not sent here.
 export const createSubject = async (
   currentState: CurrentState,
   data: SubjectSchema
 ) => {
   try {
-    await prisma.subject.create({
-      data: {
-        name: data.name,
-        teachers: {
-          connect: data.teachers.map((teacherId) => ({ id: teacherId })),
-        },
-      },
-    });
-
-    // revalidatePath("/list/subjects");
-    return { success: true, error: false };
+    const res = await createSubjectApi(data.name);
+    return { success: res.ok, error: !res.ok };
   } catch (err) {
     console.log(err);
     return { success: false, error: true };
@@ -48,20 +46,11 @@ export const updateSubject = async (
   data: SubjectSchema
 ) => {
   try {
-    await prisma.subject.update({
-      where: {
-        id: data.id,
-      },
-      data: {
-        name: data.name,
-        teachers: {
-          set: data.teachers.map((teacherId) => ({ id: teacherId })),
-        },
-      },
-    });
-
-    // revalidatePath("/list/subjects");
-    return { success: true, error: false };
+    if (data.id === undefined) {
+      return { success: false, error: true };
+    }
+    const res = await updateSubjectApi(data.id, data.name);
+    return { success: res.ok, error: !res.ok };
   } catch (err) {
     console.log(err);
     return { success: false, error: true };
@@ -74,14 +63,8 @@ export const deleteSubject = async (
 ) => {
   const id = data.get("id") as string;
   try {
-    await prisma.subject.delete({
-      where: {
-        id: parseInt(id),
-      },
-    });
-
-    // revalidatePath("/list/subjects");
-    return { success: true, error: false };
+    const res = await deleteSubjectApi(parseInt(id));
+    return { success: res.ok, error: !res.ok };
   } catch (err) {
     console.log(err);
     return { success: false, error: true };
