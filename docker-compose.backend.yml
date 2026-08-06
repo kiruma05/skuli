@@ -21,6 +21,10 @@ services:
       # External Keycloak container, realm "skuli". JWT decoding is lazy, so the backend
       # boots even if Keycloak is not reachable yet.
       KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI:-http://host.docker.internal:8080/realms/skuli}
+      # The DB is shared with the legacy Prisma schema during the Phase 4 transition, so Flyway
+      # must baseline the pre-existing (Prisma) tables. baseline-version=0 keeps V1 in scope.
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: 'true'
+      SPRING_FLYWAY_BASELINE_VERSION: '0'
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     depends_on:

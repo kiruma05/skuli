@@ -24,6 +24,9 @@ services:
       # and the browser (needs `127.0.0.1 host.docker.internal` in the host's /etc/hosts).
       AUTH_KEYCLOAK_ISSUER: ${KEYCLOAK_ISSUER_URI:-http://host.docker.internal:8080/realms/skuli}
       AUTH_TRUST_HOST: 'true'
+      # Server-side calls to the Spring backend (Phase 4 cutover). The backend service is on the
+      # same compose network, so reach it by service name (bring up the backend overlay too).
+      API_BASE_URL: ${API_BASE_URL:-http://backend:8080}
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     depends_on:
