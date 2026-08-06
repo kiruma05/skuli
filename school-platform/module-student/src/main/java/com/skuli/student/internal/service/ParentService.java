@@ -3,6 +3,7 @@ package com.skuli.student.internal.service;
 import com.skuli.auth.api.KeycloakService;
 import com.skuli.auth.api.KeycloakService.NewUser;
 import com.skuli.auth.api.KeycloakService.UpdateUser;
+import com.skuli.auth.api.ProvisioningAuditRecorder;
 import com.skuli.common.error.BusinessRuleException;
 import com.skuli.common.error.ResourceNotFoundException;
 import com.skuli.common.util.PageResponse;
@@ -34,11 +35,14 @@ public class ParentService {
     private final ParentRepository repository;
     private final ParentMapper mapper;
     private final KeycloakService keycloak;
+    private final ProvisioningAuditRecorder auditRecorder;
 
-    public ParentService(ParentRepository repository, ParentMapper mapper, KeycloakService keycloak) {
+    public ParentService(ParentRepository repository, ParentMapper mapper, KeycloakService keycloak,
+                         ProvisioningAuditRecorder auditRecorder) {
         this.repository = repository;
         this.mapper = mapper;
         this.keycloak = keycloak;
+        this.auditRecorder = auditRecorder;
     }
 
     @Transactional(readOnly = true)
@@ -107,9 +111,12 @@ public class ParentService {
             keycloak.deleteUser(keycloakUserId);
             log.info("Compensation succeeded: removed Keycloak user {} for '{}'",
                     keycloakUserId, username);
+            auditRecorder.compensationSucceeded(username, keycloakUserId);
         } catch (RuntimeException compensationFailure) {
             log.error("Compensation FAILED: Keycloak user {} for '{}' is orphaned and must be "
                     + "removed manually", keycloakUserId, username, compensationFailure);
+            auditRecorder.compensationFailed(username, keycloakUserId,
+                    compensationFailure.getMessage());
         }
     }
 

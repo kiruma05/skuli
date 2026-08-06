@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.skuli.auth.api.KeycloakService;
+import com.skuli.auth.api.ProvisioningAuditRecorder;
 import com.skuli.common.error.BusinessRuleException;
 import com.skuli.common.security.TenantContext;
 import com.skuli.student.api.dto.ParentDto;
@@ -40,11 +41,14 @@ class ParentServiceTest {
     @Mock
     private KeycloakService keycloak;
 
+    @Mock
+    private ProvisioningAuditRecorder auditRecorder;
+
     private ParentService service;
 
     @BeforeEach
     void setUp() {
-        service = new ParentService(repository, new ParentMapperImpl(), keycloak);
+        service = new ParentService(repository, new ParentMapperImpl(), keycloak, auditRecorder);
         TenantContext.set(TENANT);
     }
 
@@ -84,6 +88,7 @@ class ParentServiceTest {
                 .hasMessage("db down");
 
         verify(keycloak).deleteUser("kc-1");
+        verify(auditRecorder).compensationSucceeded("pmum", "kc-1");
     }
 
     @Test

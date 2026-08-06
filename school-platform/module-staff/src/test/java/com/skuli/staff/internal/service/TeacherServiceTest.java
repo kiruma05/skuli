@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.skuli.auth.api.KeycloakService;
+import com.skuli.auth.api.ProvisioningAuditRecorder;
 import com.skuli.common.domain.UserSex;
 import com.skuli.common.error.BusinessRuleException;
 import com.skuli.staff.api.dto.TeacherDto;
@@ -43,11 +44,14 @@ class TeacherServiceTest {
     @Mock
     private KeycloakService keycloak;
 
+    @Mock
+    private ProvisioningAuditRecorder auditRecorder;
+
     private TeacherService service;
 
     @BeforeEach
     void setUp() {
-        service = new TeacherService(repository, new TeacherMapperImpl(), keycloak);
+        service = new TeacherService(repository, new TeacherMapperImpl(), keycloak, auditRecorder);
         TenantContext.set(TENANT);
     }
 
@@ -89,6 +93,7 @@ class TeacherServiceTest {
                 .hasMessage("db down");
 
         verify(keycloak).deleteUser("kc-1"); // compensation
+        verify(auditRecorder).compensationSucceeded("jdoe", "kc-1"); // audit trail
     }
 
     @Test

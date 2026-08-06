@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import com.skuli.academics.api.ClassCatalog;
 import com.skuli.auth.api.KeycloakService;
+import com.skuli.auth.api.ProvisioningAuditRecorder;
 import com.skuli.common.domain.UserSex;
 import com.skuli.common.error.BusinessRuleException;
 import com.skuli.common.error.ResourceNotFoundException;
@@ -48,11 +49,15 @@ class StudentServiceTest {
     @Mock
     private ClassCatalog classCatalog;
 
+    @Mock
+    private ProvisioningAuditRecorder auditRecorder;
+
     private StudentService service;
 
     @BeforeEach
     void setUp() {
-        service = new StudentService(repository, new StudentMapperImpl(), keycloak, classCatalog);
+        service = new StudentService(repository, new StudentMapperImpl(), keycloak, classCatalog,
+                auditRecorder);
         TenantContext.set(TENANT);
     }
 
@@ -120,6 +125,7 @@ class StudentServiceTest {
                 .hasMessage("db down");
 
         verify(keycloak).deleteUser("kc-1");
+        verify(auditRecorder).compensationSucceeded("sjones", "kc-1");
     }
 
     @Test
