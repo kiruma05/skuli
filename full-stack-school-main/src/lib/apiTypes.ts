@@ -22,3 +22,8 @@ export type SchoolClassDto = {
   supervisorId: string | null;
   gradeId: number;
 };
+
+export type GradeDto = {
+  id: number;
+  level: number;
+};
